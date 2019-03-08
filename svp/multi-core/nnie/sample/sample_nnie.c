@@ -186,13 +186,13 @@ HI_S32 SAMPLE_VENC_SYS_Init(HI_U32 u32SupplementConfig,SAMPLE_SNS_TYPE_E  enSnsT
     u64BlkSize = COMMON_GetPicBufferSize(stSnsSize.u32Width, stSnsSize.u32Height, PIXEL_FORMAT_YVU_SEMIPLANAR_422, DATA_BITWIDTH_10, COMPRESS_MODE_NONE,DEFAULT_ALIGN);
     stVbConf.astCommPool[0].u64BlkSize   = u64BlkSize;
     stVbConf.astCommPool[0].u32BlkCnt    = 15;
-#if 0
+#if 1
     u64BlkSize = COMMON_GetPicBufferSize(1920, 1080, PIXEL_FORMAT_YVU_SEMIPLANAR_422, DATA_BITWIDTH_10, COMPRESS_MODE_NONE,DEFAULT_ALIGN);
     stVbConf.astCommPool[1].u64BlkSize   = u64BlkSize;
     stVbConf.astCommPool[1].u32BlkCnt    = 15;
 
     stVbConf.astCommPool[2].u64BlkSize = 768*576*2;
-    stVbConf.astCommPool[2].u32BlkCnt  = 1;
+    stVbConf.astCommPool[2].u32BlkCnt  = 2;
     stVbConf.u32MaxPoolCnt = 4;
 #else
     stVbConf.astCommPool[1].u64BlkSize   = 768*576*2;
@@ -543,24 +543,24 @@ HI_S32 SAMPLE_VENC_4K120(void *arg)
     }
 
     /***encode h.264 **/
-    //s32Ret = SAMPLE_COMM_VENC_Start(VencChn[1], enPayLoad[1], enSize[1], enRcMode,u32Profile[1],&stGopAttr);
-    //if (HI_SUCCESS != s32Ret)
-    //{
-    //    SAMPLE_PRT("Venc Start failed for %#x!\n", s32Ret);
-    //    goto EXIT_VENC_H265_UnBind;
-    //}
+    s32Ret = SAMPLE_COMM_VENC_Start(VencChn[1], enPayLoad[1], enSize[1], enRcMode,u32Profile[1],&stGopAttr);
+    if (HI_SUCCESS != s32Ret)
+    {
+        SAMPLE_PRT("Venc Start failed for %#x!\n", s32Ret);
+        goto EXIT_VENC_H265_UnBind;
+    }
 
-    //s32Ret = SAMPLE_COMM_VPSS_Bind_VENC(VpssGrp, VpssChn[1],VencChn[1]);
-    //if (HI_SUCCESS != s32Ret)
-    //{
-    //    SAMPLE_PRT("Venc bind Vpss failed for %#x!\n", s32Ret);
-    //    goto EXIT_VENC_H264_STOP;
-    //}
+    s32Ret = SAMPLE_COMM_VPSS_Bind_VENC(VpssGrp, VpssChn[1],VencChn[1]);
+    if (HI_SUCCESS != s32Ret)
+    {
+        SAMPLE_PRT("Venc bind Vpss failed for %#x!\n", s32Ret);
+        goto EXIT_VENC_H264_STOP;
+    }
 
     /******************************************
      stream save process
     ******************************************/
-#if 0
+#if 1
     s32Ret = SAMPLE_COMM_VENC_StartGetStream(VencChn,s32ChnNum);
 #else
     s32Ret = SAMPLE_COMM_VENC_StartGetStream(VencChn,1);
