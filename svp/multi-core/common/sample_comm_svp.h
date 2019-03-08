@@ -163,6 +163,7 @@ do{\
 *System init
 */
 void SAMPLE_COMM_SVP_CheckSysInit(void);
+HI_VOID SAMPLE_COMM_SVP_SetSysInit(HI_VOID);
 /*
 *System exit
 */

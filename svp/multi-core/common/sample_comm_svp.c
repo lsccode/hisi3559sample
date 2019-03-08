@@ -81,6 +81,12 @@ HI_VOID SAMPLE_COMM_SVP_CheckSysInit(HI_VOID)
 
 	SAMPLE_SVP_TRACE(SAMPLE_SVP_ERR_LEVEL_DEBUG,"Svp mpi init ok!\n");
 }
+
+HI_VOID SAMPLE_COMM_SVP_SetSysInit(HI_VOID)
+{
+     s_bSampleSvpInit = HI_TRUE;
+}
+
 /*
 *System exit
 */

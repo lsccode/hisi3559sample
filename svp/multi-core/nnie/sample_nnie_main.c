@@ -16,6 +16,11 @@ static char **s_ppChCmdArgv = NULL;
 /******************************************************************************
 * function : to process abnormal case
 ******************************************************************************/
+
+/******************************************************************************
+* function : to process abnormal case
+******************************************************************************/
+
 #ifndef __HuaweiLite__
 void SAMPLE_SVP_HandleSig(int s32Signo)
 {
@@ -52,6 +57,7 @@ void SAMPLE_SVP_HandleSig(int s32Signo)
                 {
                    SAMPLE_SVP_NNIE_Ssd_HandleSig0();
                    SAMPLE_SVP_NNIE_Ssd_HandleSig1();
+                   SAMPLE_VENC_NNIE_HandleSig(s32Signo);
                    //SAMPLE_SVP_NNIE_Ssd_HandleSigFoward0();
                    //SAMPLE_SVP_NNIE_Ssd_HandleSigFoward1();
                 }
@@ -151,10 +157,12 @@ int main(int argc, char *argv[])
             break;
         case '5':
             {
+                pthread_t threadvenc;
                 pthread_t thread0;
                 //pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_Ssd0,NULL);
                 //SAMPLE_SVP_NNIE_Ssd1(NULL);
                 //SAMPLE_SVP_NNIE_Ssd0(NULL);
+                pthread_create(&threadvenc,NULL,SAMPLE_VENC_4K120,NULL);
                 pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_SsdForward0,NULL);
                 SAMPLE_SVP_NNIE_SsdForward1(NULL);
                 //SAMPLE_SVP_NNIE_SsdForward0(NULL);
