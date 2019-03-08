@@ -1,0 +1,21 @@
+# Hisilicon Hi35xx sample Makefile.param
+CPU_TYPE=single
+OSTYPE=liteos
+
+export PARAM_FILE := ../../../../Makefile.param
+include $(PARAM_FILE)
+
+COMMON_DIR:=$(PWD)/../../../common
+AUDIO_ADP_DIR:=$(PWD)/../../../audio/adp
+
+include ../../../Makefile.param
+
+
+CFLAGS += -I$(PWD)/../media_server/include
+CFLAGS += -I$(SDK_PATH)/hisyslink/ipcmsg/include
+CFLAGS += -I$(PWD)/../common
+
+MPI_LIBS += $(SDK_PATH)/hisyslink/ipcmsg/out/liteos/single/libipcmsg_single.a
+
+SRCS := $(wildcard $(PWD)/../common/*.c)
+SRCS += $(wildcard $(PWD)/../media_server/*.c)

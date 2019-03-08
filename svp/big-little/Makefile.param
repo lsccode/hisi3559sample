@@ -1,0 +1,29 @@
+# Hisilicon Hi35xx sample Makefile.param
+CPU_TYPE=big-little
+OSTYPE=linux
+
+export PARAM_FILE := ../../../../Makefile.param
+include $(PARAM_FILE)
+
+COMMON_DIR := $(PWD)/../common
+SAMPLE_CLIENT_DIR := $(PWD)/../media_client
+
+MPI_LIBS := $(REL_LIB)/libmpi.a
+MPI_LIBS += $(REL_LIB)/libive.a
+MPI_LIBS += $(REL_LIB)/libmd.a
+MPI_LIBS += $(REL_LIB)/libdsp.a
+MPI_LIBS += $(REL_LIB)/libnnie.a
+MPI_LIBS += $(SDK_PATH)/hisyslink/ipcmsg/out/linux/big-little/libipcmsg_big-little.a
+
+INC_FLAGS += -I$(REL_INC)
+INC_FLAGS += -I$(COMMON_DIR)
+INC_FLAGS += -I$(SAMPLE_CLIENT_DIR)/include
+INC_FLAGS += -I$(SDK_PATH)/hisyslink/ipcmsg/include
+
+CFLAGS += -Wall -g $(INC_FLAGS) -D$(HIARCH) -D$(HI_FPGA) -lpthread -lm -ldl
+
+COMM_SRC := $(wildcard $(COMMON_DIR)/*.c)
+COMM_OBJ := $(COMM_SRC:%.c=%.o)
+
+SAMPLE_CLIENT_SRC := $(wildcard $(SAMPLE_CLIENT_DIR)/*.c)
+SAMPLE_CLIENT_OBJ := $(SAMPLE_CLIENT_SRC:%.c=%.o)

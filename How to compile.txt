@@ -1,0 +1,7 @@
+If you are using the SMP(multi-core Linux) solution, use commands:
+make linux
+make linuxclean
+
+If you are using the AMP(Big.little-linux+LiteOS) solution, use commands:
+make lite
+make liteclean

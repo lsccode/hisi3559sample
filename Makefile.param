@@ -1,0 +1,109 @@
+# Hisilicon Hi35xx sample Makefile.param
+
+ifeq ($(PARAM_FILE), )
+     PARAM_FILE:=../../Makefile.param
+     include $(PARAM_FILE)
+endif
+
+################# select sensor type for your sample ###############################
+####    SONY_IMX477_MIPI_8M_30FPS_12BIT            #################
+####    SONY_IMX477_MIPI_8M_60FPS_12BIT            #################
+####    SONY_IMX477_MIPI_12M_30FPS_12BIT           #################
+####    SONY_IMX477_MIPI_9M_50FPS_10BIT            #################
+####    SONY_IMX290_MIPI_2M_30FPS_12BIT            #################
+####    SONY_IMX290_MIPI_2M_30FPS_12BIT_WDR3TO1    #################
+####    SONY_IMX334_SLAVE_MIPI_8M_30FPS_12BIT      #################
+####    SONY_IMX334_MIPI_8M_30FPS_12BIT            #################
+####    SONY_IMX334_MIPI_8M_30FPS_12BIT_WDR2TO1    #################
+####    SONY_IMX277_SLVS_8M_120FPS_10BIT           #################
+####    SONY_IMX277_SLVS_8M_30FPS_12BIT            #################
+####    SONY_IMX277_SLVS_8M_60FPS_12BIT            #################
+####    SONY_IMX277_SLVS_12M_30FPS_12BIT           #################
+####    SONY_IMX277_SLVS_2M_240FPS_12BIT           #################
+
+SENSOR0_TYPE ?= SONY_IMX334_MIPI_8M_30FPS_12BIT
+SENSOR1_TYPE ?= SONY_IMX334_MIPI_8M_30FPS_12BIT
+SENSOR2_TYPE ?= SONY_IMX334_MIPI_8M_30FPS_12BIT
+SENSOR3_TYPE ?= SONY_IMX334_MIPI_8M_30FPS_12BIT
+SENSOR4_TYPE ?= SONY_IMX277_SLVS_8M_30FPS_12BIT
+SENSOR5_TYPE ?= SONY_IMX277_SLVS_8M_30FPS_12BIT
+SENSOR6_TYPE ?= SONY_IMX277_SLVS_8M_30FPS_12BIT
+SENSOR7_TYPE ?= SONY_IMX277_SLVS_8M_30FPS_12BIT
+
+
+SENSOR_LIBS := $(REL_LIB)/lib_hiae.a
+SENSOR_LIBS += $(REL_LIB)/libisp.a
+SENSOR_LIBS += $(REL_LIB)/lib_hidehaze.a
+SENSOR_LIBS += $(REL_LIB)/lib_hidrc.a
+SENSOR_LIBS += $(REL_LIB)/lib_hildci.a
+SENSOR_LIBS += $(REL_LIB)/libsns_imx477.a
+SENSOR_LIBS += $(REL_LIB)/libsns_imx299.a
+SENSOR_LIBS += $(REL_LIB)/libsns_imx299_slvs.a
+SENSOR_LIBS += $(REL_LIB)/libsns_imx290.a
+SENSOR_LIBS += $(REL_LIB)/libsns_imx334.a
+SENSOR_LIBS += $(REL_LIB)/libsns_imx334_slave.a
+SENSOR_LIBS += $(REL_LIB)/libsns_imx277_slvs.a
+SENSOR_LIBS += $(REL_LIB)/lib_hiawb.a
+
+
+MPI_LIBS := $(REL_LIB)/libmpi.a
+MPI_LIBS += $(REL_LIB)/libhdmi.a
+MPI_LIBS += $(REL_LIB)/libdpu_rect.a
+MPI_LIBS += $(REL_LIB)/libdpu_match.a
+MPI_LIBS += $(REL_LIB)/libhiavslut.a
+
+COMMON_DIR ?= $(PWD)/../common
+AUDIO_ADP_DIR ?= $(PWD)/../audio/adp
+
+INC_FLAGS := -I$(COMMON_DIR)
+INC_FLAGS += -I$(REL_INC)
+INC_FLAGS += -I$(AUDIO_ADP_DIR)
+INC_FLAGS += -I$(OSAL_ROOT)/include
+
+INC_FLAGS += -I$(SDK_PATH)/$(EXTDRV)/tlv320aic31
+INC_FLAGS += -I$(SDK_PATH)/$(EXTDRV)/motionsenser/motionsenser_mng
+INC_FLAGS += -I$(SDK_PATH)/$(EXTDRV)/motionsenser/motionsenser_chip/icm20690
+	
+ISP_VERSION := ISP_V2
+CFLAGS += -Wall -g $(INC_FLAGS) -D$(HIARCH) -D$(HI_FPGA) -lpthread -lm -ldl -D$(ISP_VERSION)
+CFLAGS += -lstdc++
+CFLAGS += -DSENSOR0_TYPE=$(SENSOR0_TYPE)
+CFLAGS += -DSENSOR1_TYPE=$(SENSOR1_TYPE)
+CFLAGS += -DSENSOR2_TYPE=$(SENSOR2_TYPE)
+CFLAGS += -DSENSOR3_TYPE=$(SENSOR3_TYPE)
+CFLAGS += -DSENSOR4_TYPE=$(SENSOR4_TYPE)
+CFLAGS += -DSENSOR5_TYPE=$(SENSOR5_TYPE)
+CFLAGS += -DSENSOR6_TYPE=$(SENSOR6_TYPE)
+CFLAGS += -DSENSOR7_TYPE=$(SENSOR7_TYPE)
+
+################ select audio codec type for your sample ################
+ACODEC_TYPE ?= ACODEC_TYPE_INNER
+#external acodec
+#ACODEC_TYPE ?= ACODEC_TYPE_TLV320AIC31
+INNER_HDMI ?= y
+
+ifeq ($(ACODEC_TYPE), ACODEC_TYPE_INNER)
+	CFLAGS += -DHI_ACODEC_TYPE_INNER
+endif
+
+
+ifeq ($(ACODEC_TYPE), ACODEC_TYPE_TLV320AIC31)
+	CFLAGS += -DHI_ACODEC_TYPE_TLV320AIC31
+endif
+
+ifeq ($(INNER_HDMI), y)
+	CFLAGS += -DHI_ACODEC_TYPE_HDMI
+endif
+
+#########################################################################
+
+CFLAGS += $(LIBS_CFLAGS)   $(MPP_CFLAGS)
+
+COMM_SRC := $(wildcard $(COMMON_DIR)/*.c)
+
+#DEL_SRC  := $(COMMON_DIR)/sample_comm_audio.c
+#DEL_SRC  += $(COMMON_DIR)/sample_comm_ive.c
+#COMM_SRC := $(filter-out $(DEL_SRC), $(COMM_SRC))
+
+COMM_OBJ := $(COMM_SRC:%.c=%.o)
+
