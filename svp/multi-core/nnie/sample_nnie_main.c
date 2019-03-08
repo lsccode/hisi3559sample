@@ -163,7 +163,8 @@ int main(int argc, char *argv[])
                 //SAMPLE_SVP_NNIE_Ssd1(NULL);
                 //SAMPLE_SVP_NNIE_Ssd0(NULL);
                 pthread_create(&threadvenc,NULL,SAMPLE_VENC_4K120,NULL);
-                //pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_SsdForward0,NULL);
+                sleep(30);
+                pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_SsdForward0,NULL);
                 SAMPLE_SVP_NNIE_SsdForward1(NULL);
                 //SAMPLE_SVP_NNIE_SsdForward0(NULL);
             }
