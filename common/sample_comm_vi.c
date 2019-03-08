@@ -3776,7 +3776,7 @@ HI_VOID SAMPLE_COMM_VI_GetSensorInfo(SAMPLE_VI_CONFIG_S* pstViConfig)
         hi_memset(&pstViConfig->astViInfo[i].stSnapInfo, sizeof(SAMPLE_SNAP_INFO_S), 0, sizeof(SAMPLE_SNAP_INFO_S));
     }
 
-    pstViConfig->astViInfo[0].stSnsInfo.enSnsType = HI_MPI_ISP_SetSnsSlaveAttr;
+    pstViConfig->astViInfo[0].stSnsInfo.enSnsType = SENSOR0_TYPE;
 
     pstViConfig->astViInfo[1].stSnsInfo.enSnsType = SENSOR1_TYPE;
 
