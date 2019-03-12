@@ -29,58 +29,64 @@ void SAMPLE_SVP_HandleSig(int s32Signo)
         switch (*s_ppChCmdArgv[1])
         {
             case '0':
-                {
-                   SAMPLE_SVP_NNIE_Rfcn_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_Rfcn_HandleSig();
+            }
+            break;
             case '1':
-                {
-                   SAMPLE_SVP_NNIE_Segnet_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_Segnet_HandleSig();
+            }
+            break;
             case '2':
-                {
-                   SAMPLE_SVP_NNIE_FasterRcnn_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_FasterRcnn_HandleSig();
+            }
+            break;
             case '3':
-                {
-                   SAMPLE_SVP_NNIE_FasterRcnn_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_FasterRcnn_HandleSig();
+            }
+            break;
             case '4':
-                {
-                   SAMPLE_SVP_NNIE_Cnn_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_Cnn_HandleSig();
+            }
+            break;
             case '5':
-                {
-                   SAMPLE_SVP_NNIE_Ssd_HandleSig0();
-                   SAMPLE_SVP_NNIE_Ssd_HandleSig1();
-                   SAMPLE_VENC_NNIE_HandleSig(s32Signo);
-                   //SAMPLE_SVP_NNIE_Ssd_HandleSigFoward0();
-                   //SAMPLE_SVP_NNIE_Ssd_HandleSigFoward1();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_Ssd_HandleSig0();
+                SAMPLE_SVP_NNIE_Ssd_HandleSig1();
+                SAMPLE_VENC_NNIE_HandleSig(s32Signo);
+                //SAMPLE_SVP_NNIE_Ssd_HandleSigFoward0();
+                //SAMPLE_SVP_NNIE_Ssd_HandleSigFoward1();
+            }
+            break;
             case '6':
-                {
-                   SAMPLE_SVP_NNIE_Yolov1_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_Yolov1_HandleSig();
+            }
+            break;
             case '7':
-                {
-                   SAMPLE_SVP_NNIE_Yolov2_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_Yolov2_HandleSig();
+            }
+            break;
             case '8':
-                {
-                   SAMPLE_SVP_NNIE_Lstm_HandleSig();
-                }
-                break;
+            {
+                SAMPLE_SVP_NNIE_Lstm_HandleSig();
+            }
+            break;
+            case '9':
+            {
+                SAMPLE_SVP_NNIE_Mobilenet_Ssd_HandleSig();
+            }
+            break;
+
             default :
-                {
-                }
-                break;
+            {
+            }
+            break;
         }
 
         printf("\033[0;31mprogram termination abnormally!\033[0;39m\n");
@@ -104,6 +110,7 @@ void SAMPLE_SVP_Usage(char* pchPrgName)
     printf("\t 6) Yolov1(Read File).\n");
     printf("\t 7) Yolov2(Read File).\n");
     printf("\t 8) LSTM(Read File).\n");
+    printf("\t 9) mobilenet-ssd(Read File).\n");
 }
 
 /******************************************************************************
@@ -131,64 +138,69 @@ int main(int argc, char *argv[])
     switch (*argv[1])
     {
         case '0':
-            {
-                SAMPLE_SVP_NNIE_Rfcn();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_Rfcn();
+        }
+        break;
         case '1':
-            {
-                SAMPLE_SVP_NNIE_Segnet();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_Segnet();
+        }
+        break;
         case '2':
-            {
-                SAMPLE_SVP_NNIE_FasterRcnn();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_FasterRcnn();
+        }
+        break;
         case '3':
-            {
-                SAMPLE_SVP_NNIE_FasterRcnn_DoubleRoiPooling();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_FasterRcnn_DoubleRoiPooling();
+        }
+        break;
         case '4':
-            {
-                SAMPLE_SVP_NNIE_Cnn();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_Cnn();
+        }
+        break;
         case '5':
-            {
-                pthread_t threadvenc;
-                pthread_t thread0;
-                //pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_Ssd0,NULL);
-                //SAMPLE_SVP_NNIE_Ssd1(NULL);
-                //SAMPLE_SVP_NNIE_Ssd0(NULL);
-                pthread_create(&threadvenc,NULL,SAMPLE_VENC_4K120,NULL);
-                sleep(30);
-                pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_SsdForward0,NULL);
-                SAMPLE_SVP_NNIE_SsdForward1(NULL);
-                //SAMPLE_SVP_NNIE_SsdForward0(NULL);
-            }
-            break;
+        {
+            pthread_t threadvenc;
+            pthread_t thread0;
+            //pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_Ssd0,NULL);
+            //SAMPLE_SVP_NNIE_Ssd1(NULL);
+            //SAMPLE_SVP_NNIE_Ssd0(NULL);
+            pthread_create(&threadvenc,NULL,SAMPLE_VENC_4K120,NULL);
+            sleep(30);
+            pthread_create(&thread0,NULL,SAMPLE_SVP_NNIE_SsdForward0,NULL);
+            SAMPLE_SVP_NNIE_SsdForward1(NULL);
+            //SAMPLE_SVP_NNIE_SsdForward0(NULL);
+        }
+        break;
         case '6':
-            {
-                SAMPLE_SVP_NNIE_Yolov1();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_Yolov1();
+        }
+        break;
         case '7':
-            {
-                SAMPLE_SVP_NNIE_Yolov2();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_Yolov2();
+        }
+        break;
         case '8':
-            {
-                SAMPLE_SVP_NNIE_Lstm();
-            }
-            break;
+        {
+            SAMPLE_SVP_NNIE_Lstm();
+        }
+        break;
+        case '9':
+        {
+            SAMPLE_SVP_NNIE_Mobilenet_Ssd(NULL);
+        }
+        break;
         default :
-            {
-                SAMPLE_SVP_Usage(argv[0]);
-            }
-            break;
+        {
+            SAMPLE_SVP_Usage(argv[0]);
+        }
+        break;
     }
 
     return s32Ret;

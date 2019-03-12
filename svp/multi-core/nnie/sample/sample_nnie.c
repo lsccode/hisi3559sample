@@ -55,6 +55,10 @@ static SAMPLE_SVP_NNIE_MODEL_S s_stSsdModel1 = {0};
 static SAMPLE_SVP_NNIE_PARAM_S s_stSsdNnieParam1 = {0};
 static SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S s_stSsdSoftwareParam1 = {0};
 
+static SAMPLE_SVP_NNIE_MODEL_S s_stMobileNetSsdModel = {0};
+static SAMPLE_SVP_NNIE_PARAM_S s_stMobileNetSsdNnieParam = {0};
+static SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S s_stMobileNetSsdSsdSoftwareParam = {0};
+
 pthread_mutex_t mtSSD = PTHREAD_MUTEX_INITIALIZER;
 /*yolov1 para*/
 static SAMPLE_SVP_NNIE_MODEL_S s_stYolov1Model = {0};
@@ -3329,6 +3333,163 @@ void SAMPLE_SVP_NNIE_Ssd_HandleSigFoward1(void)
     memset(&s_stSsdNnieParam1,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
     memset(&s_stSsdSoftwareParam1,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
     memset(&s_stSsdModel1,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : show SSD sample(image 300x300 U8_C3)
+******************************************************************************/
+void SAMPLE_SVP_NNIE_Mobilenet_Ssd(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/rgb_planar/dog_bike_car_300x300.bgr";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_mobilenetssd_inst.wk";
+//    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+
+    /*Ssd Load model*/
+    SAMPLE_SVP_TRACE_INFO("Ssd Load model!\n");
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stMobileNetSsdModel);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stMobileNetSsdNnieParam.pstModel = &s_stMobileNetSsdModel.stModel;
+
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stMobileNetSsdNnieParam,&s_stMobileNetSsdSsdSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+
+     printstNnieCfg(&stNnieCfg);
+     printstNnieParam(&s_stMobileNetSsdNnieParam,s_stMobileNetSsdModel.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 mobilenet-SSD start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 300*300\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+#if 0
+            s32Ret = SAMPLE_SVP_NNIE_FillSrcData(&stNnieCfg,&s_stMobileNetSsdNnieParam,&stInputDataIdx);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_FillSrcData failed!\n");
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+#else
+
+#endif
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stMobileNetSsdNnieParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+#if 0
+            pthread_mutex_lock(&mtSSD);
+            s32Ret = SAMPLE_SVP_NNIE_Ssd_GetResult("SSD0", &s_stMobileNetSsdNnieParam,&s_stMobileNetSsdSsdSoftwareParam);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Ssd_GetResult failed!\n");
+            pthread_mutex_unlock(&mtSSD);
+#else
+           // usleep(80*1000);
+           // fprintf(stderr,"wait ... \n");
+#endif
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+            SAMPLE_SVP_PrintPerformance("mobilenet-SSD",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+        }
+//        clock_gettime(CLOCK_MONOTONIC, &stEndTimeSpc);
+//        HI_U64 diff = stEndTimeSpc.tv_sec*1000*1000 +
+//                      stEndTimeSpc.tv_nsec/1000 -
+//                      stStartTimeSpc.tv_sec*1000*1000-
+//                      stStartTimeSpc.tv_nsec/1000;
+////        fprintf(stderr,"start:%llu,end %llu\n",stStartTimeSpc.tv_sec,stEndTimeSpc.tv_sec);
+
+//        fprintf(stderr,"  Elapse time      : %.2f ms \n",diff*1.0/(M_INTER_LOOP_NUMBER*1000));
+//        fprintf(stderr,"  CNN Performance  : %.2f fps\n",1000*1000*1.0*M_INTER_LOOP_NUMBER/diff);
+
+        fprintf(stderr,"################ Hi3559 ARFCV100 mobilenet-SSD end procesing ################\n");
+        //(void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stSsdSoftwareParam0.stDstScore,
+        //        &s_stSsdSoftwareParam0.stDstRoi, &s_stSsdSoftwareParam0.stClassRoiNum,f32PrintResultThresh);
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stMobileNetSsdSsdSoftwareParam.stDstScore,
+            &s_stMobileNetSsdSsdSoftwareParam.stDstRoi, &s_stMobileNetSsdSsdSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stMobileNetSsdNnieParam,&s_stMobileNetSsdSsdSoftwareParam,&s_stMobileNetSsdModel);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+void SAMPLE_SVP_NNIE_Mobilenet_Ssd_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stMobileNetSsdNnieParam,&s_stMobileNetSsdSsdSoftwareParam,&s_stMobileNetSsdModel);
+    memset(&s_stMobileNetSsdNnieParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stMobileNetSsdSsdSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stMobileNetSsdModel,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
     SAMPLE_COMM_SVP_CheckSysExit();
 }
 

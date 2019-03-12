@@ -42,6 +42,7 @@ void SAMPLE_SVP_NNIE_Ssd1(void *);
 void SAMPLE_SVP_NNIE_SsdForward0(void *arg);
 void SAMPLE_SVP_NNIE_SsdForward1(void *arg);
 HI_S32 SAMPLE_VENC_4K120(void *);
+void SAMPLE_SVP_NNIE_Mobilenet_Ssd(void *arg);
 /******************************************************************************
 * function : show YOLOV1 sample
 ******************************************************************************/
@@ -85,6 +86,7 @@ void SAMPLE_SVP_NNIE_Ssd_HandleSig0(void);
 void SAMPLE_SVP_NNIE_Ssd_HandleSig1(void);
 void SAMPLE_SVP_NNIE_Ssd_HandleSigFoward0(void);
 void SAMPLE_SVP_NNIE_Ssd_HandleSigFoward1(void);
+void SAMPLE_SVP_NNIE_Mobilenet_Ssd_HandleSig(void);
 void SAMPLE_VENC_NNIE_HandleSig(HI_S32 signo);
 /******************************************************************************
 * function : Yolov1 sample signal handle

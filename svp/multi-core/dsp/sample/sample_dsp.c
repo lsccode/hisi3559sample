@@ -170,7 +170,7 @@ static HI_VOID SAMPLE_SVP_DSP_DilateCore(SVP_DSP_ID_E enDspId,SVP_DSP_PRI_E enPr
     HI_CHAR acThreadName[16] = {0};
 
     s_stDspSwitch.bVo   = HI_TRUE;
-    s_stDspSwitch.bVenc = HI_FALSE;
+    s_stDspSwitch.bVenc = HI_TRUE;
 
     s32Ret = SAMPLE_COMM_IVE_StartViVpssVencVo(&s_stViConfig,&s_stDspSwitch,&enSize);
     SAMPLE_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret, END_DSP_0,
@@ -210,8 +210,8 @@ END_DSP_0:
 */
 HI_VOID SAMPLE_SVP_DSP_Dilate(HI_VOID)
 {
-    SVP_DSP_PRI_E enPri = SVP_DSP_PRI_0;
-    SVP_DSP_ID_E enDspId = SVP_DSP_ID_0;
+    SVP_DSP_PRI_E enPri = SVP_DSP_PRI_2;
+    SVP_DSP_ID_E enDspId = SVP_DSP_ID_3;
     SAMPLE_SVP_DSP_DilateCore(enDspId,enPri);
 }
 
