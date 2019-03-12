@@ -82,6 +82,11 @@ void SAMPLE_SVP_HandleSig(int s32Signo)
                 SAMPLE_SVP_NNIE_Mobilenet_Ssd_HandleSig();
             }
             break;
+            case '10':
+            {
+                SAMPLE_SVP_NNIE_SsdCaffeProfiling_HandleSig();
+            }
+            break;
 
             default :
             {
@@ -101,16 +106,17 @@ void SAMPLE_SVP_Usage(char* pchPrgName)
 {
     printf("Usage : %s <index> \n", pchPrgName);
     printf("index:\n");
-    printf("\t 0) RFCN(VI->VPSS->NNIE->VGS->VO).\n");
-    printf("\t 1) Segnet(Read File).\n");
-    printf("\t 2) FasterRcnnAlexnet(Read File).\n");
-    printf("\t 3) FasterRcnnDoubleRoiPooling(Read File).\n");
-    printf("\t 4) Cnn(Read File).\n");
-    printf("\t 5) SSD(Read File).\n");
-    printf("\t 6) Yolov1(Read File).\n");
-    printf("\t 7) Yolov2(Read File).\n");
-    printf("\t 8) LSTM(Read File).\n");
-    printf("\t 9) mobilenet-ssd(Read File).\n");
+    printf("\t 0)  RFCN(VI->VPSS->NNIE->VGS->VO).\n");
+    printf("\t 1)  Segnet(Read File).\n");
+    printf("\t 2)  FasterRcnnAlexnet(Read File).\n");
+    printf("\t 3)  FasterRcnnDoubleRoiPooling(Read File).\n");
+    printf("\t 4)  Cnn(Read File).\n");
+    printf("\t 5)  SSD(Read File).\n");
+    printf("\t 6)  Yolov1(Read File).\n");
+    printf("\t 7)  Yolov2(Read File).\n");
+    printf("\t 8)  LSTM(Read File).\n");
+    printf("\t 9)  mobilenet-ssd(Read File).\n");
+    printf("\t 10) ssd caffe profiling(Read File).\n");
 }
 
 /******************************************************************************
@@ -194,6 +200,11 @@ int main(int argc, char *argv[])
         case '9':
         {
             SAMPLE_SVP_NNIE_Mobilenet_Ssd(NULL);
+        }
+        break;
+        case '10':
+        {
+            SAMPLE_SVP_NNIE_SsdCaffeProfiling(NULL);
         }
         break;
         default :
