@@ -23,7 +23,7 @@
 #include "sample_comm_ive.h"
 
 #define M_EXTER_LOOP_NUMBER (10)
-#define M_INTER_LOOP_NUMBER (3)
+#define M_INTER_LOOP_NUMBER (10)
 
 /*cnn para*/
 static SAMPLE_SVP_NNIE_MODEL_S s_stCnnModel = {0};
@@ -62,6 +62,14 @@ static SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S s_stMobileNetSsdSsdSoftwareParam = {
 static SAMPLE_SVP_NNIE_MODEL_S s_stSsdCaffeModel = {0};
 static SAMPLE_SVP_NNIE_PARAM_S s_stSsdCaffeNnieParam = {0};
 static SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S s_stSsdCaffeSoftwareParam = {0};
+
+static SAMPLE_SVP_NNIE_MODEL_S s_stCaffeModelConv = {0};
+static SAMPLE_SVP_NNIE_PARAM_S s_stCaffeModelConvParam = {0};
+static SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S s_stCaffeModelConvSoftwareParam = {0};
+
+static SAMPLE_SVP_NNIE_MODEL_S s_stDepthWiseModelConv = {0};
+static SAMPLE_SVP_NNIE_PARAM_S s_stDepthWiseConvParam = {0};
+static SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S s_stDepthWiseConvSoftwareParam = {0};
 
 pthread_mutex_t mtSSD = PTHREAD_MUTEX_INITIALIZER;
 /*yolov1 para*/
@@ -2727,8 +2735,8 @@ INIT_FAIL_0:
 void SAMPLE_SVP_NNIE_Ssd0(void *arg)
 {
     HI_CHAR *pcSrcFile = "./data/nnie_image/rgb_planar/dog_bike_car_300x300.bgr";
-    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_cycle.wk";
-//    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_inst.wk";
+//    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_cycle.wk";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_inst_int8.wk";
     HI_U32 u32PicNum = 1;
     HI_FLOAT f32PrintResultThresh = 0.0f;
     HI_S32 s32Ret = HI_SUCCESS;
@@ -2750,7 +2758,7 @@ void SAMPLE_SVP_NNIE_Ssd0(void *arg)
     SAMPLE_COMM_SVP_CheckSysInit();
 
     /*Ssd Load model*/
-    SAMPLE_SVP_TRACE_INFO("Ssd Load model!\n");
+    SAMPLE_SVP_TRACE_INFO("Ssd Load model %s!\n",pcModelName);
     s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stSsdModel0);
     SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
                                "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
@@ -3504,7 +3512,7 @@ void SAMPLE_SVP_NNIE_Mobilenet_Ssd_HandleSig(void)
 void SAMPLE_SVP_NNIE_SsdCaffeProfiling(void *arg)
 {
     HI_CHAR *pcSrcFile = "./data/nnie_image/rgb_planar/dog_bike_car_300x300.bgr";
-    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_mobilenetssd_inst.wk";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/caffe_model_conv_inst.wk";
 //    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_inst.wk";
     HI_U32 u32PicNum = 1;
     HI_FLOAT f32PrintResultThresh = 0.0f;
@@ -3646,7 +3654,2024 @@ void SAMPLE_SVP_NNIE_SsdCaffeProfiling_HandleSig(void)
     SAMPLE_COMM_SVP_CheckSysExit();
 }
 
+void SAMPLE_SVP_NNIE_CaffeModelConv(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/caffe_model_conv.fea";
+//    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_cycle.wk";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/caffe_model_conv_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
 
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    /*Ssd Load model*/
+
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stCaffeModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stCaffeModelConvParam.pstModel = &s_stCaffeModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stCaffeModelConvParam,&s_stCaffeModelConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stCaffeModelConvParam,s_stCaffeModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 Caffe Model Conv start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 512*19*19\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+#if 0
+            s32Ret = SAMPLE_SVP_NNIE_FillSrcData(&stNnieCfg,&s_stCaffeModelConvParam,&stInputDataIdx);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_FillSrcData failed!\n");
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+#else
+
+#endif
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stCaffeModelConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+#if 0
+            pthread_mutex_lock(&mtSSD);
+            s32Ret = SAMPLE_SVP_NNIE_Ssd_GetResult("Caffe Model Conv", &s_stCaffeModelConvParam,&s_stCaffeModelConvSoftwareParam);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Ssd_GetResult failed!\n");
+            pthread_mutex_unlock(&mtSSD);
+#else
+            // usleep(80*1000);
+            // fprintf(stderr,"wait ... \n");
+#endif
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("Caffe Model Conv",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+//        clock_gettime(CLOCK_MONOTONIC, &stEndTimeSpc);
+//        HI_U64 diff = stEndTimeSpc.tv_sec*1000*1000 +
+//                      stEndTimeSpc.tv_nsec/1000 -
+//                      stStartTimeSpc.tv_sec*1000*1000-
+//                      stStartTimeSpc.tv_nsec/1000;
+////        fprintf(stderr,"start:%llu,end %llu\n",stStartTimeSpc.tv_sec,stEndTimeSpc.tv_sec);
+
+//        fprintf(stderr,"  Elapse time      : %.2f ms \n",diff*1.0/(M_INTER_LOOP_NUMBER*1000));
+//        fprintf(stderr,"  CNN Performance  : %.2f fps\n",1000*1000*1.0*M_INTER_LOOP_NUMBER/diff);
+
+        fprintf(stderr,"################ Hi3559 ARFCV100 Caffe Model Conv end procesing ################\n");
+        //(void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stSsdSoftwareParam0.stDstScore,
+        //        &s_stSsdSoftwareParam0.stDstRoi, &s_stSsdSoftwareParam0.stClassRoiNum,f32PrintResultThresh);
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stCaffeModelConvSoftwareParam.stDstScore,
+            &s_stCaffeModelConvSoftwareParam.stDstRoi, &s_stCaffeModelConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stCaffeModelConvParam,&s_stCaffeModelConvSoftwareParam,&s_stCaffeModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_CaffeModelConv_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stCaffeModelConvParam,&s_stCaffeModelConvSoftwareParam,&s_stCaffeModelConv);
+    memset(&s_stCaffeModelConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stCaffeModelConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stCaffeModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_DepthWiseConv(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/depthwise_conv.fea";
+//    HI_CHAR *pcModelName = "./data/nnie_model/detection/inst_ssd_cycle.wk";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/mobilenetDW_conv_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 Mobilenet Depthwise Conv start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128*56*56\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+#if 0
+            s32Ret = SAMPLE_SVP_NNIE_FillSrcData(&stNnieCfg,&s_stDepthWiseConvParam,&stInputDataIdx);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_FillSrcData failed!\n");
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+#else
+
+#endif
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+#if 0
+            pthread_mutex_lock(&mtSSD);
+            s32Ret = SAMPLE_SVP_NNIE_Ssd_GetResult("Caffe Model Conv", &s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Ssd_GetResult failed!\n");
+            pthread_mutex_unlock(&mtSSD);
+#else
+            // usleep(80*1000);
+            // fprintf(stderr,"wait ... \n");
+#endif
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("Mobilenet Depthwise Conv",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+//        clock_gettime(CLOCK_MONOTONIC, &stEndTimeSpc);
+//        HI_U64 diff = stEndTimeSpc.tv_sec*1000*1000 +
+//                      stEndTimeSpc.tv_nsec/1000 -
+//                      stStartTimeSpc.tv_sec*1000*1000-
+//                      stStartTimeSpc.tv_nsec/1000;
+////        fprintf(stderr,"start:%llu,end %llu\n",stStartTimeSpc.tv_sec,stEndTimeSpc.tv_sec);
+
+//        fprintf(stderr,"  Elapse time      : %.2f ms \n",diff*1.0/(M_INTER_LOOP_NUMBER*1000));
+//        fprintf(stderr,"  CNN Performance  : %.2f fps\n",1000*1000*1.0*M_INTER_LOOP_NUMBER/diff);
+
+        fprintf(stderr,"################ Hi3559 ARFCV100 Mobilenet Depthwise Conv end procesing ################\n");
+        //(void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stSsdSoftwareParam0.stDstScore,
+        //        &s_stSsdSoftwareParam0.stDstRoi, &s_stSsdSoftwareParam0.stClassRoiNum,f32PrintResultThresh);
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_DepthWiseConv_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_DepthWiseNormConv(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/depthwise_norm_conv.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/mobilenetDw_norm_conv_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 Mobilenet Depthwise Norm Conv start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128*256*256\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+#if 0
+            s32Ret = SAMPLE_SVP_NNIE_FillSrcData(&stNnieCfg,&s_stDepthWiseConvParam,&stInputDataIdx);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_FillSrcData failed!\n");
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+#else
+
+#endif
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+#if 0
+            pthread_mutex_lock(&mtSSD);
+            s32Ret = SAMPLE_SVP_NNIE_Ssd_GetResult("Mobilenet Depthwise Norm Conv", &s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Ssd_GetResult failed!\n");
+            pthread_mutex_unlock(&mtSSD);
+#else
+            // usleep(80*1000);
+            // fprintf(stderr,"wait ... \n");
+#endif
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("Mobilenet Depthwise Norm Conv",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+//        clock_gettime(CLOCK_MONOTONIC, &stEndTimeSpc);
+//        HI_U64 diff = stEndTimeSpc.tv_sec*1000*1000 +
+//                      stEndTimeSpc.tv_nsec/1000 -
+//                      stStartTimeSpc.tv_sec*1000*1000-
+//                      stStartTimeSpc.tv_nsec/1000;
+////        fprintf(stderr,"start:%llu,end %llu\n",stStartTimeSpc.tv_sec,stEndTimeSpc.tv_sec);
+
+//        fprintf(stderr,"  Elapse time      : %.2f ms \n",diff*1.0/(M_INTER_LOOP_NUMBER*1000));
+//        fprintf(stderr,"  CNN Performance  : %.2f fps\n",1000*1000*1.0*M_INTER_LOOP_NUMBER/diff);
+
+        fprintf(stderr,"################ Hi3559 ARFCV100 Mobilenet Depthwise Norm Conv end procesing ################\n");
+        //(void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stSsdSoftwareParam0.stDstScore,
+        //        &s_stSsdSoftwareParam0.stDstRoi, &s_stSsdSoftwareParam0.stClassRoiNum,f32PrintResultThresh);
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_DepthWiseNormConv_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_PointWiseNormConv(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/pointwise_norm_conv.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/mobilenetPw128_norm_conv_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 Mobilenet Pointwise Norm Conv start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128*256*256\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+#if 0
+            s32Ret = SAMPLE_SVP_NNIE_FillSrcData(&stNnieCfg,&s_stDepthWiseConvParam,&stInputDataIdx);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_FillSrcData failed!\n");
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+#else
+
+#endif
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+#if 0
+            pthread_mutex_lock(&mtSSD);
+            s32Ret = SAMPLE_SVP_NNIE_Ssd_GetResult("Mobilenet Pointwise Norm Conv", &s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Ssd_GetResult failed!\n");
+            pthread_mutex_unlock(&mtSSD);
+#else
+            // usleep(80*1000);
+            // fprintf(stderr,"wait ... \n");
+#endif
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("Mobilenet Pointwise Norm Conv",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+//        clock_gettime(CLOCK_MONOTONIC, &stEndTimeSpc);
+//        HI_U64 diff = stEndTimeSpc.tv_sec*1000*1000 +
+//                      stEndTimeSpc.tv_nsec/1000 -
+//                      stStartTimeSpc.tv_sec*1000*1000-
+//                      stStartTimeSpc.tv_nsec/1000;
+////        fprintf(stderr,"start:%llu,end %llu\n",stStartTimeSpc.tv_sec,stEndTimeSpc.tv_sec);
+
+//        fprintf(stderr,"  Elapse time      : %.2f ms \n",diff*1.0/(M_INTER_LOOP_NUMBER*1000));
+//        fprintf(stderr,"  CNN Performance  : %.2f fps\n",1000*1000*1.0*M_INTER_LOOP_NUMBER/diff);
+
+        fprintf(stderr,"################ Hi3559 ARFCV100 Mobilenet Pointwise Norm Conv end procesing ################\n");
+        //(void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stSsdSoftwareParam0.stDstScore,
+        //        &s_stSsdSoftwareParam0.stDstRoi, &s_stSsdSoftwareParam0.stClassRoiNum,f32PrintResultThresh);
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_PointWiseNormConv_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/ssd_norm_conv_256_256_128_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128*256*256\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+#if 0
+            s32Ret = SAMPLE_SVP_NNIE_FillSrcData(&stNnieCfg,&s_stDepthWiseConvParam,&stInputDataIdx);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_FillSrcData failed!\n");
+            fprintf(stderr,"SSD0 Line = %d\n",__LINE__);
+#else
+
+#endif
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+#if 0
+            pthread_mutex_lock(&mtSSD);
+            s32Ret = SAMPLE_SVP_NNIE_Ssd_GetResult("Mobilenet Pointwise Norm Conv", &s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Ssd_GetResult failed!\n");
+            pthread_mutex_unlock(&mtSSD);
+#else
+            // usleep(80*1000);
+            // fprintf(stderr,"wait ... \n");
+#endif
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+//        clock_gettime(CLOCK_MONOTONIC, &stEndTimeSpc);
+//        HI_U64 diff = stEndTimeSpc.tv_sec*1000*1000 +
+//                      stEndTimeSpc.tv_nsec/1000 -
+//                      stStartTimeSpc.tv_sec*1000*1000-
+//                      stStartTimeSpc.tv_nsec/1000;
+////        fprintf(stderr,"start:%llu,end %llu\n",stStartTimeSpc.tv_sec,stEndTimeSpc.tv_sec);
+
+//        fprintf(stderr,"  Elapse time      : %.2f ms \n",diff*1.0/(M_INTER_LOOP_NUMBER*1000));
+//        fprintf(stderr,"  CNN Performance  : %.2f fps\n",1000*1000*1.0*M_INTER_LOOP_NUMBER/diff);
+
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv end procesing ################\n");
+        //(void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stSsdSoftwareParam0.stDstScore,
+        //        &s_stSsdSoftwareParam0.stDstRoi, &s_stSsdSoftwareParam0.stClassRoiNum,f32PrintResultThresh);
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv1X1_128x256x256_256(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_1x1_128x256x256_256_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv1X1_128x256x256_256 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_256\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv1X1_128x256x256_256",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv1X1_128x256x256_256 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv1X1_128x256x256_256_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv1x1_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_1x1_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv1x1_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv1x1_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv1x1_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv1x1_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv1x3_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_1x3_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv1x3_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv1x3_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv1x3_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv1x3_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv1x5_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_1x5_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv1x5_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv1x5_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv1x5_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv1x5_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv3x1_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_3x1_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv3x1_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv3x1_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv3x1_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv3x1_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv3x3_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_3x3_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv3x3_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv3x3_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv3x3_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv3x3_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv3x5_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_3x5_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv3x5_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv3x5_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv3x5_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv3x5_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv5x1_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_5x1_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv5x1_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv5x1_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv5x1_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv5x1_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv5x3_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_5x3_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv5x3_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv5x3_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv5x3_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv5x3_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
+void SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128(void *arg)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = "./data/nnie_model/detection/conv_5x5_128x256x256_128_nnie_inst.wk";
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,load %s \n",__LINE__,pcModelName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(1)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv5x5_128x256x256_128 start procesing ##############\n");
+        fprintf(stderr,"Image resolution : 128x256x256_128\n");
+        //clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            struct timespec stStartSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcTime);
+
+            struct timespec stStartSpcForward;
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcForward);
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+            /*software process*/
+            /*if user has changed net struct, please make sure SAMPLE_SVP_NNIE_Ssd_GetResult
+             function's input datas are correct*/
+            struct timespec stStartSpcGetRes;
+            clock_gettime(CLOCK_MONOTONIC, &stStartSpcGetRes);
+
+            struct timespec stEndSpcTime;
+            clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+            /*print result, this sample has 21 classes:
+             class 0:background     class 1:plane           class 2:bicycle
+             class 3:bird           class 4:boat            class 5:bottle
+             class 6:bus            class 7:car             class 8:cat
+             class 9:chair          class10:cow             class11:diningtable
+             class 12:dog           class13:horse           class14:motorbike
+             class 15:person        class16:pottedplant     class17:sheep
+             class 18:sofa          class19:train           class20:tvmonitor*/
+            HI_DOUBLE dbTotalDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stEndSpcTime);
+            HI_DOUBLE dbFillSrcDiff = SAMPLE_SVP_GetDiff(&stStartSpcTime,&stStartSpcForward);
+            HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartSpcForward,&stStartSpcGetRes);
+            HI_DOUBLE dbGetResDiff = SAMPLE_SVP_GetDiff(&stStartSpcGetRes,&stEndSpcTime);
+
+            SAMPLE_SVP_PrintPerformance("SSD Norm Conv5x5_128x256x256_128",dbTotalDiff,dbFillSrcDiff,dbFrowardDiff,dbGetResDiff);
+
+        }
+        fprintf(stderr,"################ Hi3559 ARFCV100 SSD Norm Conv5x5_128x256x256_128 end procesing ################\n");
+
+    }
+
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
 /******************************************************************************
 * function : Yolov1 software deinit
 ******************************************************************************/

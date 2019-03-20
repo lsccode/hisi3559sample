@@ -44,6 +44,21 @@ void SAMPLE_SVP_NNIE_SsdForward1(void *arg);
 HI_S32 SAMPLE_VENC_4K120(void *);
 void SAMPLE_SVP_NNIE_Mobilenet_Ssd(void *arg);
 void SAMPLE_SVP_NNIE_SsdCaffeProfiling(void *arg);
+void SAMPLE_SVP_NNIE_CaffeModelConv(void *arg);
+void SAMPLE_SVP_NNIE_DepthWiseConv(void *arg);
+void SAMPLE_SVP_NNIE_DepthWiseNormConv(void *arg);
+void SAMPLE_SVP_NNIE_PointWiseNormConv(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv1X1_128x256x256_256(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv1x1_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv1x3_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv1x5_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv3x1_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv3x3_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv3x5_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv5x1_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv5x3_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128(void *arg);
 /******************************************************************************
 * function : show YOLOV1 sample
 ******************************************************************************/
@@ -90,6 +105,21 @@ void SAMPLE_SVP_NNIE_Ssd_HandleSigFoward1(void);
 void SAMPLE_SVP_NNIE_Mobilenet_Ssd_HandleSig(void);
 void SAMPLE_SVP_NNIE_SsdCaffeProfiling_HandleSig(void);
 void SAMPLE_VENC_NNIE_HandleSig(HI_S32 signo);
+void SAMPLE_SVP_NNIE_CaffeModelConv_HandleSig(void);
+void SAMPLE_SVP_NNIE_DepthWiseConv_HandleSig(void);
+void SAMPLE_SVP_NNIE_DepthWiseNormConv_HandleSig(void);
+void SAMPLE_SVP_NNIE_PointWiseNormConv_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv1X1_128x256x256_256_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv1x1_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv1x3_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv1x5_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv3x1_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv3x3_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv3x5_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv5x1_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv5x3_128x256x256_128_HandleSig(void);
+void SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128_HandleSig(void);
 /******************************************************************************
 * function : Yolov1 sample signal handle
 ******************************************************************************/
