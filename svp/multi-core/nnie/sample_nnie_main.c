@@ -163,6 +163,11 @@ void SAMPLE_SVP_HandleSig(int s32Signo)
                 SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128_HandleSig();
             }
             break;
+            case 26:
+            {
+                SAMPLE_SVP_NNIE_SSDNormConvProfile_HandleSig();
+            }
+            break;
             default :
             {
             }
@@ -207,6 +212,7 @@ void SAMPLE_SVP_Usage(char* pchPrgName)
     printf("\t 23) conv_5x1_128x256x256_128 \n");
     printf("\t 24) conv_5x3_128x256x256_128 \n");
     printf("\t 25) conv_5x5_128x256x256_128 \n");
+    printf("\t 26) conv norm profile \n");
 }
 
 /******************************************************************************
@@ -373,6 +379,11 @@ int main(int argc, char *argv[])
         case 25:
         {
             SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128(NULL);
+        }
+        break;
+        case 26:
+        {
+            SAMPLE_SVP_NNIE_SSDNormConvProfile(argv[2],argv[3],argv[4],argv[5]);
         }
         break;
         default :

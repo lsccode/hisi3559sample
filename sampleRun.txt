@@ -1,0 +1,57 @@
+./sample_nnie_main wkname kernelinfo inputFeatureMap inputFeatureMap
+#  conv_3x3_ic_change
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_4_nnie_inst.wk 3x3 4*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_8_nnie_inst.wk 3x3 8*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_12_nnie_inst.wk 3x3 12*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_16_nnie_inst.wk 3x3 16*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_20_nnie_inst.wk 3x3 20*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_24_nnie_inst.wk 3x3 24*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_28_nnie_inst.wk 3x3 28*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_32_nnie_inst.wk 3x3 32*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_36_nnie_inst.wk 3x3 36*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_40_nnie_inst.wk 3x3 40*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_44_nnie_inst.wk 3x3 44*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_48_nnie_inst.wk 3x3 48*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_52_nnie_inst.wk 3x3 52*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_56_nnie_inst.wk 3x3 56*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_60_nnie_inst.wk 3x3 60*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_64_nnie_inst.wk 3x3 64*256*256 64*256*256
+
+#conv_3x3_oc_change
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_4_nnie_inst.wk 3x3 64*256*256  4*256*256 
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_8_nnie_inst.wk 3x3 64*256*256  8*256*256 
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_12_nnie_inst.wk 3x3 64*256*256  12*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_16_nnie_inst.wk 3x3 64*256*256  16*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_20_nnie_inst.wk 3x3 64*256*256  20*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_24_nnie_inst.wk 3x3 64*256*256  24*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_28_nnie_inst.wk 3x3 64*256*256  28*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_32_nnie_inst.wk 3x3 64*256*256  32*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_36_nnie_inst.wk 3x3 64*256*256  36*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_40_nnie_inst.wk 3x3 64*256*256  40*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_44_nnie_inst.wk 3x3 64*256*256  44*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_48_nnie_inst.wk 3x3 64*256*256  48*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_52_nnie_inst.wk 3x3 64*256*256  52*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_56_nnie_inst.wk 3x3 64*256*256  56*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_60_nnie_inst.wk 3x3 64*256*256  60*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/oc_64_nnie_inst.wk 3x3 64*256*256  64*256*256 
+
+#  conv_5x5_ic_change
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_4_nnie_inst.wk 5x5 4*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_8_nnie_inst.wk 5x5 8*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_12_nnie_inst.wk 5x5 12*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_16_nnie_inst.wk 5x5 16*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_20_nnie_inst.wk 5x5 20*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_24_nnie_inst.wk 5x5 24*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_28_nnie_inst.wk 5x5 28*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_32_nnie_inst.wk 5x5 32*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_36_nnie_inst.wk 5x5 36*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_40_nnie_inst.wk 5x5 40*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_44_nnie_inst.wk 5x5 44*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_48_nnie_inst.wk 5x5 48*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_52_nnie_inst.wk 5x5 52*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_56_nnie_inst.wk 5x5 56*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_60_nnie_inst.wk 5x5 60*256*256 64*256*256
+./sample_nnie_main 26 ./data/nnie_model/detection/ic_64_nnie_inst.wk 5x5 64*256*256 64*256*256
+
+
+

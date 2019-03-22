@@ -22,8 +22,8 @@
 #include "sample_svp_nnie_software.h"
 #include "sample_comm_ive.h"
 
-#define M_EXTER_LOOP_NUMBER (10)
-#define M_INTER_LOOP_NUMBER (10)
+#define M_EXTER_LOOP_NUMBER (3)
+#define M_INTER_LOOP_NUMBER (150)
 
 /*cnn para*/
 static SAMPLE_SVP_NNIE_MODEL_S s_stCnnModel = {0};
@@ -716,7 +716,7 @@ static HI_S32 SAMPLE_SVP_NNIE_Forward(SAMPLE_SVP_NNIE_PARAM_S *pstNnieParam,
     if(bInstant)
     {
         /*Wait NNIE finish*/
-        fprintf(stderr,"line = %d,NNIE id = %d\n",__LINE__,pstNnieParam->astForwardCtrl[pstProcSegIdx->u32SegIdx].enNnieId);
+//        fprintf(stderr,"line = %d,NNIE id = %d\n",__LINE__,pstNnieParam->astForwardCtrl[pstProcSegIdx->u32SegIdx].enNnieId);
         while(HI_ERR_SVP_NNIE_QUERY_TIMEOUT == (s32Ret = HI_MPI_SVP_NNIE_Query(pstNnieParam->astForwardCtrl[pstProcSegIdx->u32SegIdx].enNnieId,
                                                 hSvpNnieHandle, &bFinish, HI_TRUE)))
         {
@@ -5672,6 +5672,111 @@ void SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128_HandleSig(void)
     SAMPLE_COMM_SVP_CheckSysExit();
 
 }
+
+void SAMPLE_SVP_NNIE_SSDNormConvProfile(char *szWkName,char *kernelInfo,char *inputFeatureMap,char *outputFeatureMap)
+{
+    HI_CHAR *pcSrcFile = "./data/nnie_image/VGG_VOC0712_SSD_300_norm_conv_256_256_128.fea";
+    HI_CHAR *pcModelName = szWkName;
+    HI_U32 u32PicNum = 1;
+    HI_FLOAT f32PrintResultThresh = 0.0f;
+    HI_S32 s32Ret = HI_SUCCESS;
+    SAMPLE_SVP_NNIE_CFG_S   stNnieCfg = {0};
+    SAMPLE_SVP_NNIE_INPUT_DATA_INDEX_S stInputDataIdx = {0};
+    SAMPLE_SVP_NNIE_PROCESS_SEG_INDEX_S stProcSegIdx = {0};
+    struct timespec stStartTimeSpc;
+    struct timespec stEndTimeSpc;
+
+    /*Set configuration parameter*/
+    f32PrintResultThresh = 0.8f;
+    stNnieCfg.pszPic= pcSrcFile;
+    stNnieCfg.u32MaxInputNum = u32PicNum; //max input image num in each batch
+    stNnieCfg.u32MaxRoiNum = 0;
+    stNnieCfg.aenNnieCoreId[0] = SVP_NNIE_ID_0;//set NNIE core
+    //stNnieCfg.aenNnieCoreId[1] = SVP_NNIE_ID_1;//set NNIE core
+
+    /*Sys init*/
+    SAMPLE_COMM_SVP_CheckSysInit();
+    fprintf(stderr,"%d,szWkName load %s \n",__LINE__,szWkName);
+    s32Ret = SAMPLE_COMM_SVP_NNIE_LoadModel(pcModelName,&s_stDepthWiseModelConv);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_COMM_SVP_NNIE_LoadModel failed!\n");
+
+    // printstModel(&s_stSsdModel);
+    /*Ssd parameter initialization*/
+    /*Ssd parameters are set in SAMPLE_SVP_NNIE_Ssd_SoftwareInit,
+      if user has changed net struct, please make sure the parameter settings in
+      SAMPLE_SVP_NNIE_Ssd_SoftwareInit function are correct*/
+    SAMPLE_SVP_TRACE_INFO("Ssd parameter initialization!\n");
+    s_stDepthWiseConvParam.pstModel = &s_stDepthWiseModelConv.stModel;
+    fprintf(stderr,"%d \n",__LINE__);
+    struct timespec stStartTimeParamInit;
+    struct timespec stEndTimeParamInit;
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    s32Ret = SAMPLE_SVP_NNIE_Ssd_ParamInit(&stNnieCfg,&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam);
+    SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                               "Error,SAMPLE_SVP_NNIE_Ssd_ParamInit failed!\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &stStartTimeParamInit);
+    fprintf(stderr,"%d \n",__LINE__);
+    printstNnieCfg(&stNnieCfg);
+    printstNnieParam(&s_stDepthWiseConvParam,s_stDepthWiseModelConv.stModel.u32NetSegNum);
+    /*Fill src data*/
+
+//    fprintf(stderr,"Ssd start!\n");
+
+    stInputDataIdx.u32SegIdx = 0;
+    stInputDataIdx.u32NodeIdx = 0;
+
+    unsigned int countEx = 0;
+    unsigned int countIn = 0;
+    fprintf(stderr,"%d \n",__LINE__);
+    while(countEx++ < M_EXTER_LOOP_NUMBER)
+    {
+        fprintf(stderr,"\n################ Hi3559 ARFCV100 SSD Norm Conv%s_%s_%s start procesing ##############\n",\
+               kernelInfo,inputFeatureMap,outputFeatureMap);
+        struct timespec stStartTimeSpc;
+        clock_gettime(CLOCK_MONOTONIC, &stStartTimeSpc);
+        countIn = 0;
+        while(countIn++ < M_INTER_LOOP_NUMBER)
+        {
+            /*NNIE process(process the 0-th segment)*/
+            stProcSegIdx.u32SegIdx = 0;
+
+            s32Ret = SAMPLE_SVP_NNIE_Forward(&s_stDepthWiseConvParam,&stInputDataIdx,&stProcSegIdx,HI_TRUE);
+            SAMPLE_SVP_CHECK_EXPR_GOTO(HI_SUCCESS != s32Ret,SSD_FAIL_0,SAMPLE_SVP_ERR_LEVEL_ERROR,
+                                       "Error,SAMPLE_SVP_NNIE_Forward failed!\n");
+        }
+        struct timespec stEndSpcTime;
+        clock_gettime(CLOCK_MONOTONIC, &stEndSpcTime);
+        HI_DOUBLE dbFrowardDiff = SAMPLE_SVP_GetDiff(&stStartTimeSpc,&stEndSpcTime);
+        dbFrowardDiff /= M_INTER_LOOP_NUMBER;
+        SAMPLE_SVP_PrintPerformance("Conv Profile",0,0,dbFrowardDiff,0);
+
+        fprintf(stderr,"################ Hi3559 ARFCV100 end procesing ################\n");
+
+    }
+    (void)SAMPLE_SVP_NNIE_Detection_PrintResult(&s_stDepthWiseConvSoftwareParam.stDstScore,
+            &s_stDepthWiseConvSoftwareParam.stDstRoi, &s_stDepthWiseConvSoftwareParam.stClassRoiNum,f32PrintResultThresh);
+
+SSD_FAIL_0:
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    SAMPLE_COMM_SVP_CheckSysExit();
+}
+
+/******************************************************************************
+* function : SSD sample signal handle
+******************************************************************************/
+void SAMPLE_SVP_NNIE_SSDNormConvProfile_HandleSig(void)
+{
+    SAMPLE_SVP_NNIE_Ssd_Deinit(&s_stDepthWiseConvParam,&s_stDepthWiseConvSoftwareParam,&s_stDepthWiseModelConv);
+    memset(&s_stDepthWiseConvParam,0,sizeof(SAMPLE_SVP_NNIE_PARAM_S));
+    memset(&s_stDepthWiseConvSoftwareParam,0,sizeof(SAMPLE_SVP_NNIE_SSD_SOFTWARE_PARAM_S));
+    memset(&s_stDepthWiseModelConv,0,sizeof(SAMPLE_SVP_NNIE_MODEL_S));
+    fprintf(stderr,"%s exit!\n",__func__);
+    SAMPLE_COMM_SVP_CheckSysExit();
+
+}
+
 /******************************************************************************
 * function : Yolov1 software deinit
 ******************************************************************************/

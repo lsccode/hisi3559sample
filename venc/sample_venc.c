@@ -500,11 +500,6 @@ HI_S32 SAMPLE_VENC_4K120(void)
         goto EXIT_VPSS_STOP;
     }
 
-    int vipipefd = HI_MPI_VI_GetPipeFd(ViPipe);
-    int vipipeChnfd = HI_MPI_VI_GetPipeFd(ViPipe,ViChn);
-
-    fprintf(stderr,"vipipefd = %d,vipipeChnfd = %d\n",vipipefd,vipipeChnfd);
-
    /******************************************
     start stream venc
     ******************************************/

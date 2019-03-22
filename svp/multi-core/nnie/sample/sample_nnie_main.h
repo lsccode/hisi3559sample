@@ -59,6 +59,8 @@ void SAMPLE_SVP_NNIE_SSDNormConv3x5_128x256x256_128(void *arg);
 void SAMPLE_SVP_NNIE_SSDNormConv5x1_128x256x256_128(void *arg);
 void SAMPLE_SVP_NNIE_SSDNormConv5x3_128x256x256_128(void *arg);
 void SAMPLE_SVP_NNIE_SSDNormConv5x5_128x256x256_128(void *arg);
+void SAMPLE_SVP_NNIE_SSDNormConvProfile(char *szWkName,char *kernelInfo,char *inputFeatureMap,char *outputFeatureMap);
+void SAMPLE_SVP_NNIE_SSDNormConvProfile_HandleSig(void);
 /******************************************************************************
 * function : show YOLOV1 sample
 ******************************************************************************/
