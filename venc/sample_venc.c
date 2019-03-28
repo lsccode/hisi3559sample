@@ -43,6 +43,7 @@ void SAMPLE_VENC_Usage(char* sPrgNm)
     return;
 }
 
+
 /******************************************************************************
 * function : to process abnormal case
 ******************************************************************************/
@@ -1109,12 +1110,12 @@ EXIT_VI_STOP:
 /******************************************************************************
 * function: Qpmap H.265e@4K@60fps + H264e@4K@60fps
 ******************************************************************************/
-HI_S32 SAMPLE_VENC_Qpmap_4K(void)
+HI_S32 SAMPLE_VENC_Qpmap_4K(char *fileName,char *rcMode,char *rcValue)
 {
     HI_S32 i;
     HI_S32 s32Ret;
     SIZE_S          stSize[2];
-    PIC_SIZE_E      enSize[2]     = {PIC_3840x2160, PIC_3840x2160};
+    PIC_SIZE_E      enSize[2]     = {PIC_1080P, PIC_1080P};
 
     HI_S32          s32ChnNum     = 2;
     VENC_CHN        VencChn[2]    = {0,1};
@@ -1134,6 +1135,8 @@ HI_S32 SAMPLE_VENC_Qpmap_4K(void)
     HI_BOOL         abChnEnable[4] = {1,0,0,0};
 
     HI_U32 u32SupplementConfig = HI_FALSE;
+
+    parseUserPara(fileName,rcMode,rcValue);
 
     for(i=0; i<s32ChnNum; i++)
     {
@@ -1190,7 +1193,7 @@ HI_S32 SAMPLE_VENC_Qpmap_4K(void)
    /******************************************
      start stream venc
     ******************************************/
-    enGopMode = SAMPLE_VENC_GetGopMode();
+    enGopMode = VENC_GOPMODE_NORMALP ; //SAMPLE_VENC_GetGopMode();
     s32Ret = SAMPLE_COMM_VENC_GetGopAttr(enGopMode,&stGopAttr);
     if (HI_SUCCESS != s32Ret)
     {
@@ -1231,9 +1234,13 @@ HI_S32 SAMPLE_VENC_Qpmap_4K(void)
         goto EXIT_VENC_H264_STOP;
     }
 
-    printf("please press twice ENTER to exit this sample\n");
-    getchar();
-    getchar();
+    //printf("please press twice ENTER to exit this sample\n");
+    //getchar();
+    //getchar();
+
+    printf("wait \n");
+    sleep(10);
+
 
     /******************************************
      exit process
@@ -1482,7 +1489,12 @@ EXIT_VI_STOP:
             s32Ret = SAMPLE_VENC_IntraRefresh_4K();
             break;
         case 4:
-            s32Ret = SAMPLE_VENC_Qpmap_4K();
+            if(argc < 5)
+            {
+                SAMPLE_VENC_Usage(argv[0]);
+                return HI_FAILURE;
+            }
+            s32Ret = SAMPLE_VENC_Qpmap_4K(argv[2],argv[3],argv[4]);
             break;
         case 5:
             s32Ret = SAMPLE_VENC_MJPEG_JPEG();

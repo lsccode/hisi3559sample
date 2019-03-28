@@ -48,6 +48,52 @@ HI_CHAR* DstBuf = NULL;
 #define TEMP_BUF_LEN 8
 #define MAX_THM_SIZE (64*1024)
 
+typedef struct tagUserPara
+{
+    HI_CHAR *szYuvFileName;
+    HI_CHAR *szRcMode;
+    HI_S32  s32RcMode;
+    HI_S32  u32RcValue;
+    HI_S32  u32IsValid;
+    HI_CHAR szDumpName[128];
+}tUserPara;
+
+tUserPara stUserPara = {0};
+
+void parseUserPara(char *fileName,char *rcMode,char *rcValue)
+{
+    stUserPara.szYuvFileName = fileName;
+    stUserPara.szRcMode      = rcMode;
+
+    if(!strcmp(stUserPara.szRcMode,"fixqp"))
+    {
+        stUserPara.s32RcMode = SAMPLE_RC_FIXQP;
+        stUserPara.u32RcValue = atoi(rcValue);
+    }
+    else if(!strcmp(stUserPara.szRcMode,"cbr"))
+    {
+        stUserPara.s32RcMode = SAMPLE_RC_CBR;
+        stUserPara.u32RcValue = atoi(rcValue);
+        stUserPara.u32RcValue = stUserPara.u32RcValue/1024;
+        stUserPara.u32RcValue = stUserPara.u32RcValue;
+    }
+    else if(!strcmp(stUserPara.szRcMode,"vbr"))
+    {
+        stUserPara.s32RcMode = SAMPLE_RC_VBR;
+        stUserPara.u32RcValue = atoi(rcValue);
+        stUserPara.u32RcValue = stUserPara.u32RcValue/1024;
+        stUserPara.u32RcValue = stUserPara.u32RcValue;
+    }
+
+    sprintf(stUserPara.szDumpName,"%s_%s_%s",
+            stUserPara.szYuvFileName,stUserPara.szRcMode,rcValue);
+    stUserPara.u32IsValid = 1;
+
+    fprintf(stderr,"user para (%s:%s:%d:%u)\n",
+            stUserPara.szYuvFileName,
+            stUserPara.szRcMode,stUserPara.s32RcMode,stUserPara.u32RcValue);
+    return;
+}
 
 #ifdef __READ_ALL_FILE__
 static HI_S32 FileTrans_GetThmFromJpg(HI_CHAR* JPGPath, HI_U32* DstSize)
@@ -565,6 +611,11 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
     HI_U32                 u32StatTime;
     HI_U32                 u32Gop = 30;
 
+    if(stUserPara.u32IsValid)
+    {
+        enRcMode = stUserPara.s32RcMode;
+    }
+
     s32Ret = SAMPLE_COMM_SYS_GetPicSize( enSize, &stPicSize);
     if (HI_SUCCESS != s32Ret)
     {
@@ -623,6 +674,7 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
                 stH265Cbr.u32StatTime       = u32StatTime; /* stream rate statics time(s) */
                 stH265Cbr.u32SrcFrameRate   = u32FrameRate; /* input (vi) frame rate */
                 stH265Cbr.fr32DstFrameRate  = u32FrameRate; /* target frame rate */
+
                 switch (enSize)
                 {
                     case PIC_720P:
@@ -647,6 +699,10 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
                         stH265Cbr.u32BitRate = 1024 * 15 + 2048*u32FrameRate/30;
                         break;
                 }
+                if(stUserPara.u32IsValid)
+                {
+                    stH265Cbr.u32BitRate = stUserPara.u32RcValue;
+                }
                 memcpy(&stVencChnAttr.stRcAttr.stH265Cbr, &stH265Cbr, sizeof(VENC_H265_CBR_S));
             }
             else if (SAMPLE_RC_FIXQP == enRcMode)
@@ -657,9 +713,15 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
                 stH265FixQp.u32Gop              = 30;
                 stH265FixQp.u32SrcFrameRate     = u32FrameRate;
                 stH265FixQp.fr32DstFrameRate    = u32FrameRate;
-                stH265FixQp.u32IQp              = 25;
+                stH265FixQp.u32IQp              = 30;
                 stH265FixQp.u32PQp              = 30;
                 stH265FixQp.u32BQp              = 32;
+                if(stUserPara.u32IsValid)
+                {
+                    stH265FixQp.u32IQp              = stUserPara.u32RcValue;
+                    stH265FixQp.u32PQp              = stUserPara.u32RcValue;
+                    stH265FixQp.u32BQp              = stUserPara.u32RcValue;
+                }
                 memcpy(&stVencChnAttr.stRcAttr.stH265FixQp, &stH265FixQp, sizeof(VENC_H265_FIXQP_S));
             }
             else if (SAMPLE_RC_VBR == enRcMode)
@@ -694,6 +756,10 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
                     default :
                         stH265Vbr.u32MaxBitRate    = 1024 * 15 + 2048*u32FrameRate/30;
                         break;
+                }
+                if(stUserPara.u32IsValid)
+                {
+                    stH265Vbr.u32MaxBitRate              = stUserPara.u32RcValue;
                 }
                 memcpy(&stVencChnAttr.stRcAttr.stH265Vbr, &stH265Vbr, sizeof(VENC_H265_VBR_S));
             }
@@ -786,6 +852,10 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
                         stH264Cbr.u32BitRate = 1024 * 15 + 2048*u32FrameRate/30;
                         break;
                 }
+                if(stUserPara.u32IsValid)
+                {
+                    stH264Cbr.u32BitRate              = stUserPara.u32RcValue;
+                }
 
                 memcpy(&stVencChnAttr.stRcAttr.stH264Cbr, &stH264Cbr, sizeof(VENC_H264_CBR_S));
             }
@@ -797,9 +867,15 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
                 stH264FixQp.u32Gop           = 30;
                 stH264FixQp.u32SrcFrameRate  = u32FrameRate;
                 stH264FixQp.fr32DstFrameRate = u32FrameRate;
-                stH264FixQp.u32IQp           = 25;
+                stH264FixQp.u32IQp           = 30;
                 stH264FixQp.u32PQp           = 30;
                 stH264FixQp.u32BQp           = 32;
+                if(stUserPara.u32IsValid)
+                {
+                    stH264FixQp.u32IQp              = stUserPara.u32RcValue;
+                    stH264FixQp.u32PQp             = stUserPara.u32RcValue;
+                    stH264FixQp.u32BQp            = stUserPara.u32RcValue;
+                }
                 memcpy(&stVencChnAttr.stRcAttr.stH264FixQp, &stH264FixQp, sizeof(VENC_H264_FIXQP_S));
             }
             else if (SAMPLE_RC_VBR == enRcMode)
@@ -834,6 +910,10 @@ HI_S32 SAMPLE_COMM_VENC_Creat(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
                     default :
                         stH264Vbr.u32MaxBitRate = 1024 * 15  + 2048*u32FrameRate/30;
                         break;
+                }
+                if(stUserPara.u32IsValid)
+                {
+                    stH264Vbr.u32MaxBitRate              = stUserPara.u32RcValue;
                 }
                 memcpy(&stVencChnAttr.stRcAttr.stH264Vbr, &stH264Vbr, sizeof(VENC_H264_VBR_S));
             }
@@ -1113,6 +1193,7 @@ HI_S32 SAMPLE_COMM_VENC_Start(VENC_CHN VencChn, PAYLOAD_TYPE_E enType,  PIC_SIZE
     /******************************************
      step 1:  Creat Encode Chnl
     ******************************************/
+
     s32Ret = SAMPLE_COMM_VENC_Creat(VencChn,enType,enSize,enRcMode,u32Profile,pstGopAttr);
     if (HI_SUCCESS != s32Ret)
     {
@@ -1409,7 +1490,253 @@ HI_S32 SAMPLE_COMM_VENC_SnapProcess(VENC_CHN VencChn, HI_U32 SnapCnt, HI_BOOL bS
     return HI_SUCCESS;
 }
 
+HI_VOID printVideoFrame(VIDEO_FRAME_INFO_S  *pstVideoFrame)
+{
+    if (NULL == pstVideoFrame)
+    {
+        fprintf(stderr,"[%s:%d],NULL == pstVideoFrame",__func__,__LINE__);
+        return ;
+    }
+
+    fprintf(stderr,"u32Width                = %u\n",pstVideoFrame->stVFrame.u32Width);
+    fprintf(stderr,"u32Height               = %u\n",pstVideoFrame->stVFrame.u32Height);
+    fprintf(stderr,"enField                 = %d\n",pstVideoFrame->stVFrame.enField);
+    fprintf(stderr,"enPixelFormat           = %d\n",pstVideoFrame->stVFrame.enPixelFormat);
+    fprintf(stderr,"enVideoFormat           = %d\n",pstVideoFrame->stVFrame.enVideoFormat);
+    fprintf(stderr,"enCompressMode          = %d\n",pstVideoFrame->stVFrame.enCompressMode);
+    fprintf(stderr,"enDynamicRange          = %d\n",pstVideoFrame->stVFrame.enDynamicRange);
+    fprintf(stderr,"enColorGamut            = %d\n",pstVideoFrame->stVFrame.enColorGamut);
+    fprintf(stderr,"u32HeaderStride[0:2]    = %u:%u:%u\n",
+            pstVideoFrame->stVFrame.u32HeaderStride[0],
+            pstVideoFrame->stVFrame.u32HeaderStride[1],
+            pstVideoFrame->stVFrame.u32HeaderStride[2]);
+    fprintf(stderr,"u32Stride[0:2]          = %u:%u:%u\n",
+            pstVideoFrame->stVFrame.u32Stride[0],
+            pstVideoFrame->stVFrame.u32Stride[1],
+            pstVideoFrame->stVFrame.u32Stride[2]);
+    fprintf(stderr,"u32ExtStride[0:2]       = %u:%u:%u\n",
+            pstVideoFrame->stVFrame.u32ExtStride[0],
+            pstVideoFrame->stVFrame.u32ExtStride[1],
+            pstVideoFrame->stVFrame.u32ExtStride[2]);
+    fprintf(stderr,"u64HeaderPhyAddr[0:2]   = %llu:%llu:%llu\n",
+            pstVideoFrame->stVFrame.u64HeaderPhyAddr[0],
+            pstVideoFrame->stVFrame.u64HeaderPhyAddr[1],
+            pstVideoFrame->stVFrame.u64HeaderPhyAddr[2]);
+    fprintf(stderr,"u64HeaderVirAddr[0:2]   = %llu:%llu:%llu\n",
+            pstVideoFrame->stVFrame.u64HeaderVirAddr[0],
+            pstVideoFrame->stVFrame.u64HeaderVirAddr[1],
+            pstVideoFrame->stVFrame.u64HeaderVirAddr[2]);
+    fprintf(stderr,"u64PhyAddr[0:2]         = %llu:%llu:%llu\n",
+            pstVideoFrame->stVFrame.u64PhyAddr[0],
+            pstVideoFrame->stVFrame.u64PhyAddr[1],
+            pstVideoFrame->stVFrame.u64PhyAddr[2]);
+    fprintf(stderr,"u64VirAddr[0:2]         = %llu:%llu:%llu\n",
+            pstVideoFrame->stVFrame.u64VirAddr[0],
+            pstVideoFrame->stVFrame.u64VirAddr[1],
+            pstVideoFrame->stVFrame.u64VirAddr[2]);
+    fprintf(stderr,"u64ExtPhyAddr[0:2]      = %llu:%llu:%llu\n",
+            pstVideoFrame->stVFrame.u64ExtPhyAddr[0],
+            pstVideoFrame->stVFrame.u64ExtPhyAddr[1],
+            pstVideoFrame->stVFrame.u64ExtPhyAddr[2]);
+    fprintf(stderr,"u64ExtVirAddr[0:2]      = %llu:%llu:%llu\n",
+            pstVideoFrame->stVFrame.u64ExtVirAddr[0],
+            pstVideoFrame->stVFrame.u64ExtVirAddr[1],
+            pstVideoFrame->stVFrame.u64ExtVirAddr[2]);
+    fprintf(stderr,"s16OffsetTop            = %d\n",pstVideoFrame->stVFrame.s16OffsetTop);
+    fprintf(stderr,"s16OffsetBottom         = %d\n",pstVideoFrame->stVFrame.s16OffsetBottom);
+    fprintf(stderr,"s16OffsetLeft           = %d\n",pstVideoFrame->stVFrame.s16OffsetLeft);
+    fprintf(stderr,"s16OffsetRight          = %d\n",pstVideoFrame->stVFrame.s16OffsetRight);
+    fprintf(stderr,"u32MaxLuminance         = %u\n",pstVideoFrame->stVFrame.u32MaxLuminance);
+    fprintf(stderr,"u32MinLuminance         = %u\n",pstVideoFrame->stVFrame.u32MinLuminance);
+    fprintf(stderr,"u32TimeRef              = %u\n",pstVideoFrame->stVFrame.u32TimeRef);
+    fprintf(stderr,"u64PTS                  = %llu\n",pstVideoFrame->stVFrame.u64PTS);
+    fprintf(stderr,"u64PrivateData          = %llu\n",pstVideoFrame->stVFrame.u64PrivateData);
+    fprintf(stderr,"u32FrameFlag            = %u\n\n",pstVideoFrame->stVFrame.u32FrameFlag);
+
+    return;
+
+}
+
+HI_U32 u32FrameNumber = 0;
+
+HI_VOID dumpVideoFrame(VIDEO_FRAME_INFO_S  *pstVideoFrame,FILE* pFile)
+{
+    if(NULL == pstVideoFrame || NULL == pFile)
+    {
+        fprintf(stderr,"pstVideoFrame = %p,pFile = %p\n",pstVideoFrame,pFile);
+        return;
+    }
+
+    HI_U32 u32Size = 0;
+    HI_U64 u64PhyAddr = 0;
+    HI_CHAR* pUserPageAddr = NULL;
+    HI_CHAR* pVBufVirt_Y;
+    HI_CHAR* pVBufVirt_C;
+    HI_CHAR *pMemContent  = NULL;
+    HI_U32 u32Heightindex = 0;
+    VIDEO_FRAME_S *pVBuf = &pstVideoFrame->stVFrame;
+    PIXEL_FORMAT_E  enPixelFormat = pVBuf->enPixelFormat;
+    HI_CHAR *pUPixBuf = NULL;
+    HI_CHAR *pVPixBuf = NULL;
+
+    if(PIXEL_FORMAT_YVU_SEMIPLANAR_420 != enPixelFormat)
+    {
+        fprintf(stderr,"format(%d) is not PIXEL_FORMAT_YVU_SEMIPLANAR_420 \n",enPixelFormat);
+        return;
+    }
+
+    pUPixBuf = (HI_CHAR *)calloc(1,(pVBuf->u32Stride[0]) * (pVBuf->u32Height)/2);
+    pVPixBuf = (HI_CHAR *)calloc(1,(pVBuf->u32Stride[0]) * (pVBuf->u32Height)/2);
+    u32Size = (pVBuf->u32Stride[0]) * (pVBuf->u32Height) * 3 / 2;
+    u64PhyAddr = pVBuf->u64PhyAddr[0];
+
+    //fprintf(stderr,"u32Stride[0] = %u,u32Stride[1] = %u\n",pVBuf->u32Stride[0],pVBuf->u32Stride[1]);
+    pUserPageAddr = (HI_CHAR*) HI_MPI_SYS_Mmap(u64PhyAddr, u32Size);
+
+    if (HI_NULL == pUserPageAddr)
+    {
+        fprintf(stderr,"pUserPageAddr = NULL \n");
+        return;
+    }
+
+    pVBufVirt_Y = pUserPageAddr;
+    pVBufVirt_C = pVBufVirt_Y + (pVBuf->u32Stride[0]) * (pVBuf->u32Height);
+
+    for (u32Heightindex = 0; u32Heightindex < pVBuf->u32Height; u32Heightindex++)
+    {
+        pMemContent = pVBufVirt_Y + u32Heightindex * pVBuf->u32Stride[0];
+        fwrite(pMemContent, pVBuf->u32Width, 1, pFile);
+    }
+
+    fflush(pFile);
+
+    for (HI_U32 h = 0; h < pVBuf->u32Height/2; h++)
+    {
+        pMemContent = pVBufVirt_C + h * pVBuf->u32Stride[1];
+
+        fwrite(pMemContent, pVBuf->u32Width, 1, pFile);
+    }
+
+    fflush(pFile);
+
+    //for (HI_U32 h = 0; h < pVBuf->u32Height/2; h++)
+    //{
+    //    pMemContent = pVBufVirt_C + h * pVBuf->u32Stride[1];
+
+    //    pMemContent += 1;
+
+    //    for (HI_U32 w = 0; w < pVBuf->u32Width / 2; w++)
+    //    {
+    //        pUPixBuf[w] = *pMemContent;
+    //        pMemContent += 2;
+    //    }
+    //    fwrite(pUPixBuf, pVBuf->u32Width / 2, 1, pFile);
+    //}
+
+    //fflush(pFile);
+
+    //for (HI_U32 h = 0; h < pVBuf->u32Height/2; h++)
+    //{
+    //    pMemContent = pVBufVirt_C + h * pVBuf->u32Stride[1];
+
+    //    for (HI_U32 w = 0; w < pVBuf->u32Width / 2; w++)
+    //    {
+    //        pVPixBuf[w] = *pMemContent;
+    //        pMemContent += 2;
+    //    }
+
+    //    fwrite(pVPixBuf, pVBuf->u32Width / 2, 1, pFile);
+    //}
+
+    //fflush(pFile);
+
+    fprintf(stderr, "done pts(%d),resolution(%u*%u),count (%u)!\n",
+            pVBuf->u32TimeRef,pVBuf->u32Width,pVBuf->u32Height,u32FrameNumber);
+    fflush(stderr);
+
+    HI_MPI_SYS_Munmap(pUserPageAddr, u32Size);
+    pUserPageAddr = HI_NULL;
+    free(pUPixBuf);
+    free(pVPixBuf);
+    return;
+}
+
+HI_VOID fillVideoFrame(VIDEO_FRAME_INFO_S  *pstVideoFrame,FILE* pFile)
+{
+    if(NULL == pstVideoFrame || NULL == pFile)
+    {
+        fprintf(stderr,"pstVideoFrame = %p,pFile = %p\n",pstVideoFrame,pFile);
+        return;
+    }
+
+    HI_U32 u32Size = 0;
+    HI_U64 u64PhyAddr = 0;
+    HI_CHAR* pUserPageAddr = NULL;
+    HI_CHAR* pVBufVirt_Y;
+    HI_CHAR* pVBufVirt_C;
+    HI_CHAR *pMemContent  = NULL;
+    HI_U32 u32Heightindex = 0;
+    VIDEO_FRAME_S *pVBuf = &pstVideoFrame->stVFrame;
+    PIXEL_FORMAT_E  enPixelFormat = pVBuf->enPixelFormat;
+
+    if(PIXEL_FORMAT_YVU_SEMIPLANAR_420 != enPixelFormat)
+    {
+        fprintf(stderr,"format(%d) is not PIXEL_FORMAT_YVU_SEMIPLANAR_420 \n",enPixelFormat);
+        return;
+    }
+
+    u32Size = (pVBuf->u32Stride[0]) * (pVBuf->u32Height) * 3 / 2;
+    u64PhyAddr = pVBuf->u64PhyAddr[0];
+
+    pUserPageAddr = (HI_CHAR*) HI_MPI_SYS_Mmap(u64PhyAddr, u32Size);
+
+    if (HI_NULL == pUserPageAddr)
+    {
+        fprintf(stderr,"pUserPageAddr = NULL \n");
+        return;
+    }
+
+    pVBufVirt_Y = pUserPageAddr;
+    pVBufVirt_C = pVBufVirt_Y + (pVBuf->u32Stride[0]) * (pVBuf->u32Height);
+
+    for (u32Heightindex = 0; u32Heightindex < pVBuf->u32Height; u32Heightindex++)
+    {
+        pMemContent = pVBufVirt_Y + u32Heightindex * pVBuf->u32Stride[0];
+        fread(pMemContent, pVBuf->u32Width, 1, pFile);
+    }
+
+    for (u32Heightindex = 0; u32Heightindex < pVBuf->u32Height/2; u32Heightindex++)
+    {
+        pMemContent = pVBufVirt_C + u32Heightindex * pVBuf->u32Stride[1];
+        fread(pMemContent, pVBuf->u32Width, 1, pFile);
+    }
+
+    //fprintf(stderr, "fill pts(%d),resolution(%u*%u),count (%u)!\n",
+    //        pVBuf->u32TimeRef,pVBuf->u32Width,pVBuf->u32Height,u32FrameNumber);
+
+    HI_MPI_SYS_Munmap(pUserPageAddr, u32Size);
+    pUserPageAddr = HI_NULL;
+    return;
+}
+
+typedef struct tagTimeDiff
+{
+    struct timespec stYUVTime;
+    struct timespec stSendFrameTime;
+    struct timespec stEncodedTime;
+}tTimeDiff;
+
+typedef struct tagTimeArray
+{
+    tTimeDiff sztTime[150];
+    HI_U32 offsetYUVTime;
+    HI_U32 offsetSendFrameTime;
+    HI_U32 offsetEncodedTime;
+}tTimeArray;
 #define QpMapBufNum 8
+HI_U32 qpArray[6] = {23,28,33,38,43,48};
+tTimeArray stTimeArray = {0};
+
 HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
 {
     HI_U32 i,j,VeChnCnt;
@@ -1465,6 +1792,7 @@ HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
         pQpMapVirAddr[i]   = pVirAddr + i*u32QpMapSize;
     }
 
+    fprintf(stderr,"Qp u64PhyAddr = %llu,pVirAddr = %p\n",u64PhyAddr,pVirAddr);
     /* skipweight h.264 */
     u32SkipWeightWidth_H264  = (pstPara->stSize.u32Width + 511)/512 *16;
     u32SkipWeightHeight_H264 = (pstPara->stSize.u32Height + 15)/16;
@@ -1483,6 +1811,7 @@ HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
         pSkipWeightVirAddr_H264[i]   = pVirAddr + i*u32SkipWeightSize_H264;
     }
 
+    fprintf(stderr,"Weight H264 u64PhyAddr = %llu,pVirAddr = %p\n",u64PhyAddr,pVirAddr);
     /* skipweight h.265 */
     u32SkipWeightWidth_H265  = (pstPara->stSize.u32Width + 2047)/2048 *16;
     u32SkipWeightHeight_H265 = (pstPara->stSize.u32Height + 63)/64;
@@ -1501,6 +1830,7 @@ HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
         pSkipWeightVirAddr_H265[i]   = pVirAddr + i*u32SkipWeightSize_H265;
     }
 
+    fprintf(stderr,"Weight H265 u64PhyAddr = %llu,pVirAddr = %p\n",u64PhyAddr,pVirAddr);
 
     s32Ret = HI_MPI_VPSS_GetChnAttr(pstPara->VpssGrp,pstPara->VpssChn,&stChnAttr);
     if(HI_SUCCESS != s32Ret)
@@ -1520,14 +1850,50 @@ HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
     }
 
     i=0;
+
+    FILE* pFile = NULL;
+    if(stUserPara.u32IsValid == 1)
+    {
+        pFile = fopen(stUserPara.szYuvFileName, "rb");
+        fprintf(stderr,"open file %s\n",stUserPara.szYuvFileName);
+    }
+
+    // FILE* pFile = fopen("VpssChan_spyvu.yuv", "wb");
+    // FILE* pFile = fopen("blue_sky_1920x1080_25.nv12.yuv", "rb");
     while(HI_TRUE == pstPara->bThreadStart)
     {
         pstVideoFrame = &stFrame[i].stUserFrame;
-        s32Ret = HI_MPI_VPSS_GetChnFrame(pstPara->VpssGrp,pstPara->VpssChn,pstVideoFrame,1000);
-        if(HI_SUCCESS != s32Ret)
+        if(u32FrameNumber < 150)
         {
-            SAMPLE_PRT("HI_MPI_VPSS_GetChnFrame err:0x%x\n",s32Ret);
-            continue;
+            s32Ret = HI_MPI_VPSS_GetChnFrame(pstPara->VpssGrp,pstPara->VpssChn,pstVideoFrame,1000);
+            if(HI_SUCCESS != s32Ret)
+            {
+                SAMPLE_PRT("HI_MPI_VPSS_GetChnFrame err:0x%x\n",s32Ret);
+                continue;
+            }
+            HI_U32 offsetIndex = stTimeArray.offsetYUVTime;
+            if(offsetIndex < 150)
+            {
+                clock_gettime(CLOCK_MONOTONIC, &(stTimeArray.sztTime[offsetIndex].stYUVTime));
+                ++stTimeArray.offsetYUVTime;
+            }
+
+            //dumpVideoFrame(pstVideoFrame,pFile);
+            //  printVideoFrame(pstVideoFrame,pFile);
+
+            if(stUserPara.u32IsValid == 1)
+                fillVideoFrame(pstVideoFrame,pFile);
+        }
+        else if(u32FrameNumber == 150)
+        {
+            if(pFile != NULL)
+            {
+                fclose(pFile);
+                pFile = NULL;
+                fprintf(stderr,"save %u frames\n",u32FrameNumber);
+            }
+            break;
+
         }
 
         pVirAddrTemp = (HI_U8 *)pQpMapVirAddr[i];
@@ -1559,6 +1925,7 @@ HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
             {
                 stFrame[i].stUserRcInfo.bSkipWeightValid = 1;
                 stFrame[i].stUserRcInfo.u64SkipWeightPhyAddr = u64SkipWeightPhyAddr_H264[i];
+
             }
             else if(PT_H265 ==stChnAttr.stVencAttr.enType)
             {
@@ -1572,9 +1939,24 @@ HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
 
             stFrame[i].stUserRcInfo.bQpMapValid     = 1;
             stFrame[i].stUserRcInfo.u64QpMapPhyAddr = u64QpMapPhyAddr[i];
-            stFrame[i].stUserRcInfo.u32BlkStartQp   = 30;
+            //stFrame[i].stUserRcInfo.u32BlkStartQp   = 30;
+            stFrame[i].stUserRcInfo.u32BlkStartQp   = qpArray[u32FrameNumber%6];
 
-            s32Ret = HI_MPI_VENC_SendFrameEx(pstPara->VeChn[VeChnCnt], &stFrame[i],-1);
+            if(VeChnCnt == 0)
+            {
+                HI_U32 offsetIndex = stTimeArray.offsetSendFrameTime;
+                if(offsetIndex < 150)
+                {
+                    clock_gettime(CLOCK_MONOTONIC, &(stTimeArray.sztTime[offsetIndex].stSendFrameTime));
+                    ++stTimeArray.offsetSendFrameTime;
+                }
+            }
+
+            if(stUserPara.s32RcMode == SAMPLE_RC_QPMAP)
+                s32Ret = HI_MPI_VENC_SendFrameEx(pstPara->VeChn[VeChnCnt], &stFrame[i],-1);
+            else
+                s32Ret = HI_MPI_VENC_SendFrame(pstPara->VeChn[VeChnCnt], pstVideoFrame,-1);
+
             if(HI_SUCCESS != s32Ret)
             {
                 SAMPLE_PRT("HI_MPI_VENC_SendFrame err:0x%x\n",s32Ret);
@@ -1604,6 +1986,7 @@ HI_VOID* SAMPLE_COMM_QpmapSendFrameProc(HI_VOID* p)
         {
             i = 0;
         }
+        ++u32FrameNumber;
     }
 err_out:
     s32Ret = HI_MPI_SYS_MmzFree(u64QpMapPhyAddr[0],pQpMapVirAddr[0]);
@@ -1662,7 +2045,7 @@ HI_VOID* SAMPLE_COMM_VENC_GetVencStreamProc(HI_VOID* p)
     fd_set read_fds;
     HI_U32 u32PictureCnt[VENC_MAX_CHN_NUM]={0};
     HI_S32 VencFd[VENC_MAX_CHN_NUM];
-    HI_CHAR aszFileName[VENC_MAX_CHN_NUM][64];
+    HI_CHAR aszFileName[VENC_MAX_CHN_NUM][128];
     FILE* pFile[VENC_MAX_CHN_NUM];
     char szFilePostfix[10];
     VENC_CHN_STATUS_S stStat;
@@ -1706,7 +2089,11 @@ HI_VOID* SAMPLE_COMM_VENC_GetVencStreamProc(HI_VOID* p)
         }
         if(PT_JPEG != enPayLoadType[i])
         {
-            snprintf(aszFileName[i],32, "stream_chn%d%s", i, szFilePostfix);
+            if(stUserPara.u32IsValid)
+                snprintf(aszFileName[i],127, "%s_stream_chn%d%s",
+                         stUserPara.szDumpName,i, szFilePostfix);
+            else
+                snprintf(aszFileName[i],127, "stream_chn%d%s", i, szFilePostfix);
 
             pFile[i] = fopen(aszFileName[i], "wb");
             if (!pFile[i])
@@ -1814,6 +2201,17 @@ HI_VOID* SAMPLE_COMM_VENC_GetVencStreamProc(HI_VOID* p)
                         SAMPLE_PRT("HI_MPI_VENC_GetStream failed with %#x!\n", \
                                    s32Ret);
                         break;
+                    }
+
+                    if( i == 0)
+                    {
+                        HI_U32 offsetIndex = stTimeArray.offsetEncodedTime;
+                        if(offsetIndex < 150)
+                        {
+                            clock_gettime(CLOCK_MONOTONIC, &(stTimeArray.sztTime[offsetIndex].stEncodedTime));
+                            ++stTimeArray.offsetEncodedTime;
+                        }
+
                     }
 
                     /*******************************************************
@@ -2152,6 +2550,20 @@ HI_S32 SAMPLE_COMM_VENC_StartGetStream_Svc_t(HI_S32 s32Cnt)
     return pthread_create(&gs_VencPid, 0, SAMPLE_COMM_VENC_GetVencStreamProc_Svc_t, (HI_VOID*)&gs_stPara);
 }
 
+HI_DOUBLE SAMPLE_CLOCK_GetDiff(struct timespec *pstTimeStart,struct timespec *pstTimeEnd)
+{
+    if (NULL == pstTimeStart || NULL == pstTimeEnd)
+        return 1.0e-10;
+
+    HI_U64 ullDiff = pstTimeEnd->tv_sec*1e3*1e3 +
+                     pstTimeEnd->tv_nsec/1e3 -
+                     pstTimeStart->tv_sec*1e3*1e3-
+                     pstTimeStart->tv_nsec/1e3;
+
+    HI_DOUBLE dbDiff = ullDiff*1.0/1e3;
+
+    return dbDiff;
+}
 /******************************************************************************
 * funciton : stop get venc stream process.
 ******************************************************************************/
@@ -2162,6 +2574,26 @@ HI_S32 SAMPLE_COMM_VENC_StopGetStream(void)
         gs_stPara.bThreadStart = HI_FALSE;
         pthread_join(gs_VencPid, 0);
     }
+
+    //fprintf(stderr,"ISP ->Encode | Encode->h26xStream | ISP->h26xStream  \n");
+    //HI_DOUBLE diff1Total = 0;
+    //HI_DOUBLE diff2Total = 0;
+    //HI_DOUBLE diff3Total = 0;
+    //for(HI_U32 index = 0 ; index < 150; ++index)
+    //{
+    //    HI_DOUBLE diff1 = SAMPLE_CLOCK_GetDiff(&(stTimeArray.sztTime[index].stYUVTime),
+    //                                           &(stTimeArray.sztTime[index].stSendFrameTime));
+    //    HI_DOUBLE diff2 = SAMPLE_CLOCK_GetDiff(&(stTimeArray.sztTime[index].stSendFrameTime),
+    //                                           &(stTimeArray.sztTime[index].stEncodedTime));
+    //    HI_DOUBLE diff3 = SAMPLE_CLOCK_GetDiff(&(stTimeArray.sztTime[index].stYUVTime),
+    //                                           &(stTimeArray.sztTime[index].stEncodedTime));
+    //    diff1Total += diff1;
+    //    diff2Total += diff2;
+    //    diff3Total += diff3;
+    //    fprintf(stderr,"%f     | %f           | %f\n",diff1,diff2,diff3);
+    //}
+
+    //fprintf(stderr,"\nStatics result : \n%f     | %f           | %f\n",diff1Total/150,diff2Total/150,diff3Total/150);
     return HI_SUCCESS;
 }
 

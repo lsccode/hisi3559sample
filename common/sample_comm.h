@@ -550,7 +550,7 @@ HI_S32 SAMPLE_COMM_VENC_StartGetStream_Svc_t(HI_S32 s32Cnt);
 HI_S32 SAMPLE_COMM_VENC_GetGopAttr(VENC_GOP_MODE_E enGopMode,VENC_GOP_ATTR_S *pstGopAttr);
 HI_S32 SAMPLE_COMM_VENC_QpmapSendFrame(VPSS_GRP VpssGrp,VPSS_CHN VpssChn,VENC_CHN VeChn[],HI_S32 s32Cnt,SIZE_S stSize);
 HI_S32 SAMPLE_COMM_VENC_StopSendQpmapFrame(void);
-
+void parseUserPara(char *fileName,char *rcMode,char *rcValue);
 
 
 HI_S32 SAMPLE_COMM_AUDIO_CreatTrdAiAo(AUDIO_DEV AiDev, AI_CHN AiChn, AUDIO_DEV AoDev, AO_CHN AoChn);
